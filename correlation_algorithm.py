@@ -302,3 +302,4 @@ if __name__ == '__main__':
     text_extracter = TEXT()
     result = text_extracter.correlation(email_list=email_list, author_list=author_list, debug=True)
     print(json.dumps(result, ensure_ascii=False, indent=True))
+
