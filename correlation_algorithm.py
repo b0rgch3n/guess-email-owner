@@ -3,7 +3,7 @@
 import re
 import unicodedata
 
-NON_WORD_CHARACTER_REGEX = re.compile('\W+')
+NON_WORD_CHARACTER_REGEX = re.compile('[^A-Za-z]')
 
 
 class Storager(object):
