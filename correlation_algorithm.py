@@ -62,7 +62,7 @@ class Owner(object):
         return self.__name
 
 
-def correlation(self, email_list: list, author_list: list, debug=False):
+def correlation(email_list: list, author_list: list, debug=False):
     """
         匹配邮箱对应的名字
     :param email_list:  邮箱列表
@@ -149,7 +149,8 @@ def correlation(self, email_list: list, author_list: list, debug=False):
             ]
             author_feature_reverse_regex_str = '|'.join(author_feature_reverse_list)
             # 匹配名字单词特征
-            author_feature_reverse_match_result = re.findall(author_feature_reverse_regex_str, email_user_copy, re.IGNORECASE)
+            author_feature_reverse_match_result = re.findall(author_feature_reverse_regex_str, email_user_copy,
+                                                             re.IGNORECASE)
             # 获取权重（按字母数计算）
             current_author_feature_reverse_weight = sum([
                 len(author_feature_reverse) for author_feature_reverse in author_feature_reverse_match_result
@@ -192,7 +193,8 @@ def correlation(self, email_list: list, author_list: list, debug=False):
                 author_feature_shout_list.append(''.join(author_feature_shout_same_limit[::-1]))
             author_feature_shout_regex_str = '|'.join(author_feature_shout_list)
             # 匹配名字单词特征
-            author_feature_shout_match_result = re.findall(author_feature_shout_regex_str, email_user_copy, re.IGNORECASE)
+            author_feature_shout_match_result = re.findall(author_feature_shout_regex_str, email_user_copy,
+                                                           re.IGNORECASE)
             # 获取权重（按字母数计算）
             current_author_feature_shout_weight = sum([
                 len(author_feature_shout) for author_feature_shout in author_feature_shout_match_result
@@ -260,6 +262,7 @@ def correlation(self, email_list: list, author_list: list, debug=False):
             if debug:
                 print('- ' * 20)
                 print('weight: ', current_author_weight)
+                print('= ' * 20)
 
             # 权重必须 > 0.8 才进行权重更新操作
             if current_author_weight <= 0.8:
@@ -272,9 +275,11 @@ def correlation(self, email_list: list, author_list: list, debug=False):
                 storager.update(email=email,
                                 name=author,
                                 name_weight=current_author_weight)
-                print("[+] %(option)s e-mail '%(email)s' author '%(author)s'." %
-                      {'option': 'Fount' if best_author_feature_weight == 0 else 'Update', 'email': email,
-                       'author': author})
+                print("[+] %(option)s e-mail '%(email)s' author '%(author)s'." % {
+                    'option': 'Fount' if best_author_feature_weight == 0 else 'Update',
+                    'email': email,
+                    'author': author
+                })
                 # 更新最优权重
                 best_author_feature_weight = current_author_weight
 
@@ -284,6 +289,7 @@ def correlation(self, email_list: list, author_list: list, debug=False):
 
 if __name__ == '__main__':
     import json
+
     email_list = [
         'dradenoy@ybb.ne.jp',
         't3hirano@nodai.ac.jp',
@@ -299,7 +305,5 @@ if __name__ == '__main__':
         'Taishi KANII',
         'Tetsuo KUNIEDA',
     ]
-    text_extracter = TEXT()
-    result = text_extracter.correlation(email_list=email_list, author_list=author_list, debug=True)
+    result = correlation(email_list=email_list, author_list=author_list, debug=True)
     print(json.dumps(result, ensure_ascii=False, indent=True))
-
