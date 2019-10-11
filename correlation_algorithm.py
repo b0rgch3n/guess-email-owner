@@ -3,7 +3,7 @@
 import re
 import unicodedata
 
-NON_WORD_CHARACTER_REGEX = re.compile('[^A-Za-z]')
+NON_ALPHABET_CHARACTER_REGEX = re.compile('[^A-Za-z]')
 
 
 class Storager(object):
@@ -62,7 +62,7 @@ class Owner(object):
         return self.__name
 
 
-def correlation(email_list: list, author_list: list, debug=False):
+def correlation(email_list: list, author_list: list, keep_original=False, debug=False):
     """
         匹配邮箱对应的名字
     :param email_list:  邮箱列表
@@ -70,6 +70,7 @@ def correlation(email_list: list, author_list: list, debug=False):
     :param debug:       是否打印调试
     :return:            匹配邮箱对应名字结果
     """
+
     # 检查参数
     email_list = [
         email for email in email_list if '@' in email
@@ -82,10 +83,14 @@ def correlation(email_list: list, author_list: list, debug=False):
     for email in email_list:
         # 取邮箱姓名部分并去符号
         email_user = email.split('@')[0]
-        email_user = NON_WORD_CHARACTER_REGEX.subn('', email_user)[0]
+        email_user = NON_ALPHABET_CHARACTER_REGEX.subn('', email_user)[0]
 
         best_author_feature_weight = 0
         for author in author_list:
+            # 暂时保存原始姓名
+            original_author_name = author
+
+            # 初始化但前权重
             current_author_weight = 0
 
             # 复制邮箱姓名部分副本
@@ -96,7 +101,7 @@ def correlation(email_list: list, author_list: list, debug=False):
             # 去除小语种音调
             author = unicodedata.normalize('NFKD', author).encode('ascii', 'ignore').decode()
             # 将名字切割为单词构造名字单词列表
-            author_words_list = NON_WORD_CHARACTER_REGEX.split(author)
+            author_words_list = NON_ALPHABET_CHARACTER_REGEX.split(author)
             # 除去单字符单词，构造名字特征列表以及对应的正则
             author_feature_list = [
                 author_words for author_words in author_words_list if len(author_words) > 1
@@ -219,10 +224,58 @@ def correlation(email_list: list, author_list: list, debug=False):
             for author_feature_shout in author_feature_shout_match_result:
                 email_user_copy = email_user_copy.replace(author_feature_shout, '')
 
+            # # = = = = = 匹配姓名首字母（连续字母） = = = = =
+            # #  TODO: 若没有前置条件，不确定性太高（不建议使用）
+            # #  e.g. Name:  Reginald Q Knight
+            # #       Email: rqkspine1@aol.com
+            #
+            # # 将名字切割为单词构造名字单词列表
+            # author_words_list = NON_WORD_CHARACTER_REGEX.split(author)
+            # # 除去单字符单词，获取单词首字母，构造名字首字母列表以及对应的正则
+            # author_first_char_list = [
+            #     author_words[0] for author_words in author_words_list
+            #     if len(author_words) > 0  # 避免出现空字符串的情况
+            # ]
+            # # author_first_char_regex_str = '[' + ''.join(author_first_char_list) + ']+'
+            # author_first_char_con_regex_str = ''.join(author_first_char_list)
+            # # 匹配名字首字母
+            # author_first_char_con_match = re.search(author_first_char_con_regex_str,
+            #                                         email_user_copy,
+            #                                         re.IGNORECASE)
+            # if author_first_char_con_match is not None:
+            #     author_first_char_con_match_result = author_first_char_con_match.group()
+            #     author_first_char_match_count = len(author_first_char_con_match_result)
+            #     # 获取权重（按字母数计算）
+            #     current_author_first_char_weight = author_first_char_match_count
+            #     # 首字母不连续，应弱化权重
+            #     current_author_first_char_weight = 0.8 * current_author_first_char_weight
+            #     # 条件1：邮箱姓名部分只由首字母组成
+            #     con1 = len(email_user) == author_first_char_match_count
+            #     # 条件2：前面2中情况已经有匹配到
+            #     con2 = current_author_weight > 0
+            #     # 满足以上任意一种则参与权重计算
+            #     current_author_weight += current_author_first_char_weight
+            #
+            #     # - - - - - 打印调试日志 - - - - -
+            #     if debug:
+            #         print('- ' * 20)
+            #         print('Name: ', author)
+            #         print('Email:', email)
+            #         print('User Part:', email_user_copy)
+            #         print(author_first_char_list)
+            #         print(author_first_char_con_regex_str)
+            #         print(author_first_char_con_match_result)
+            #         print(current_author_first_char_weight)
+            #     # - - - - - 打印调试日志 - - - - -
+            #
+            #     if debug:
+            #         print('- ' * 20)
+            #         print('weight: ', current_author_weight)
+
             # = = = = = 匹配姓名首字母（不连续字母） = = = = =
 
             # 将名字切割为单词构造名字单词列表
-            author_words_list = NON_WORD_CHARACTER_REGEX.split(author)
+            author_words_list = NON_ALPHABET_CHARACTER_REGEX.split(author)
             # 除去单字符单词，获取单词首字母，构造名字首字母列表以及对应的正则
             author_first_char_list = [
                 author_words[0] for author_words in author_words_list
@@ -240,7 +293,7 @@ def correlation(email_list: list, author_list: list, debug=False):
             # 首字母不连续，应弱化权重
             current_author_first_char_weight = 0.8 * current_author_first_char_weight
             # 条件1：邮箱姓名部分只由首字母组成
-            con1 = len(author) == author_first_char_match_count
+            con1 = len(email_user) == author_first_char_match_count
             # 条件2：前面2中情况已经有匹配到
             con2 = current_author_weight > 0
             # 满足以上任意一种则参与权重计算
@@ -262,7 +315,6 @@ def correlation(email_list: list, author_list: list, debug=False):
             if debug:
                 print('- ' * 20)
                 print('weight: ', current_author_weight)
-                print('= ' * 20)
 
             # 权重必须 > 0.8 才进行权重更新操作
             if current_author_weight <= 0.8:
@@ -272,14 +324,13 @@ def correlation(email_list: list, author_list: list, debug=False):
             is_not_zero_weight = current_author_weight != 0
             is_best_weight = current_author_weight > best_author_feature_weight
             if is_not_zero_weight and is_best_weight:
+                name = original_author_name if keep_original else author
                 storager.update(email=email,
-                                name=author,
+                                name=name,
                                 name_weight=current_author_weight)
-                print("[+] %(option)s e-mail '%(email)s' author '%(author)s'." % {
-                    'option': 'Fount' if best_author_feature_weight == 0 else 'Update',
-                    'email': email,
-                    'author': author
-                })
+                print("[+] %(option)s e-mail '%(email)s' author '%(author)s'." %
+                      {'option': 'Fount' if best_author_feature_weight == 0 else 'Update', 'email': email,
+                       'author': name})
                 # 更新最优权重
                 best_author_feature_weight = current_author_weight
 
@@ -294,10 +345,12 @@ if __name__ == '__main__':
         'dradenoy@ybb.ne.jp',
         't3hirano@nodai.ac.jp',
         'kaya@nih.go.jp',
-        'tkunieda@okayama-u.ac.jp'
+        'tkunieda@okayama-u.ac.jp',
+        'rqkspine1@aol.com',
     ]
     author_list = [
         ' ',
+        'Reginald Q Knight',
         'Kazuhiro Yoneda',
         'Yasuhiro KAWAI',
         'Takashi HIRANO',
