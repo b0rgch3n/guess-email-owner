@@ -65,10 +65,9 @@ class Owner(object):
 def correlation(email_list: list, author_list: list, keep_original=False, debug=False):
     """
         匹配邮箱对应的名字
-    :param email_list:  邮箱列表
-    :param author_list: 姓名列表
-    :param debug:       是否打印调试
-    :return:            匹配邮箱对应名字结果
+
+        算法来自于是 extracter/custom/pmc_module/detail.py
+        PmcDetailOptimize.__operations_function_5 方法
     """
 
     # 检查参数
@@ -78,6 +77,11 @@ def correlation(email_list: list, author_list: list, keep_original=False, debug=
     author_list = [
         author for author in author_list if author.strip() != ''
     ]
+
+    # 标记 TOP 3 算法是否有匹配结果
+    correlation_1_done = False
+    correlation_2_done = False
+    correlation_3_done = False
 
     storager = Storager()
     for email in email_list:
@@ -126,6 +130,10 @@ def correlation(email_list: list, author_list: list, keep_original=False, debug=
             current_author_feature_weight = 1.2 * current_author_feature_weight
             current_author_weight += current_author_feature_weight
 
+            # 有结果时标记
+            if current_author_feature_weight != 0:
+                correlation_1_done = True
+
             # - - - - - 打印调试日志 - - - - -
             if debug:
                 print('= ' * 20)
@@ -163,6 +171,10 @@ def correlation(email_list: list, author_list: list, keep_original=False, debug=
             # 名字单词字母连续，应强化权重
             current_author_feature_reverse_weight = 1.2 * current_author_feature_reverse_weight
             current_author_weight += current_author_feature_reverse_weight
+
+            # 有结果时标记
+            if current_author_feature_reverse_weight != 0:
+                correlation_2_done = True
 
             # - - - - - 打印调试日志 - - - - -
             if debug:
@@ -208,6 +220,10 @@ def correlation(email_list: list, author_list: list, keep_original=False, debug=
             current_author_feature_shout_weight = 1.0 * current_author_feature_shout_weight
             current_author_weight += current_author_feature_shout_weight
 
+            # 有结果时标记
+            if current_author_feature_shout_weight != 0:
+                correlation_3_done = True
+
             # - - - - - 打印调试日志 - - - - -
             if debug:
                 print('- ' * 20)
@@ -224,53 +240,56 @@ def correlation(email_list: list, author_list: list, keep_original=False, debug=
             for author_feature_shout in author_feature_shout_match_result:
                 email_user_copy = email_user_copy.replace(author_feature_shout, '')
 
-            # # = = = = = 匹配姓名首字母（连续字母） = = = = =
-            # #  TODO: 若没有前置条件，不确定性太高（不建议使用）
-            # #  e.g. Name:  Reginald Q Knight
-            # #       Email: rqkspine1@aol.com
-            #
-            # # 将名字切割为单词构造名字单词列表
-            # author_words_list = NON_WORD_CHARACTER_REGEX.split(author)
-            # # 除去单字符单词，获取单词首字母，构造名字首字母列表以及对应的正则
-            # author_first_char_list = [
-            #     author_words[0] for author_words in author_words_list
-            #     if len(author_words) > 0  # 避免出现空字符串的情况
-            # ]
-            # # author_first_char_regex_str = '[' + ''.join(author_first_char_list) + ']+'
-            # author_first_char_con_regex_str = ''.join(author_first_char_list)
-            # # 匹配名字首字母
-            # author_first_char_con_match = re.search(author_first_char_con_regex_str,
-            #                                         email_user_copy,
-            #                                         re.IGNORECASE)
-            # if author_first_char_con_match is not None:
-            #     author_first_char_con_match_result = author_first_char_con_match.group()
-            #     author_first_char_match_count = len(author_first_char_con_match_result)
-            #     # 获取权重（按字母数计算）
-            #     current_author_first_char_weight = author_first_char_match_count
-            #     # 首字母不连续，应弱化权重
-            #     current_author_first_char_weight = 0.8 * current_author_first_char_weight
-            #     # 条件1：邮箱姓名部分只由首字母组成
-            #     con1 = len(email_user) == author_first_char_match_count
-            #     # 条件2：前面2中情况已经有匹配到
-            #     con2 = current_author_weight > 0
-            #     # 满足以上任意一种则参与权重计算
-            #     current_author_weight += current_author_first_char_weight
-            #
-            #     # - - - - - 打印调试日志 - - - - -
-            #     if debug:
-            #         print('- ' * 20)
-            #         print('Name: ', author)
-            #         print('Email:', email)
-            #         print('User Part:', email_user_copy)
-            #         print(author_first_char_list)
-            #         print(author_first_char_con_regex_str)
-            #         print(author_first_char_con_match_result)
-            #         print(current_author_first_char_weight)
-            #     # - - - - - 打印调试日志 - - - - -
-            #
-            #     if debug:
-            #         print('- ' * 20)
-            #         print('weight: ', current_author_weight)
+            # = = = = = 匹配姓名首字母（连续字母，需要名字和邮箱的顺序恰好一致） = = = = =
+            #  e.g. Name:  Reginald Q Knight
+            #       Email: rqkspine1@aol.com
+            #  e.g. Name:  Taniya Bardhan
+            #       Email: tb1@nibmg.ac.in
+            #  e.g. Name:  Bornali Bhattacharjee
+            #       Email: bb2@nibmg.ac.in
+
+            # 将名字切割为单词构造名字单词列表
+            author_words_list = NON_ALPHABET_CHARACTER_REGEX.split(author)
+            # 除去单字符单词，获取单词首字母，构造名字首字母列表以及对应的正则
+            author_first_char_list = [
+                author_words[0] for author_words in author_words_list
+                if len(author_words) > 0  # 避免出现空字符串的情况
+            ]
+            author_first_char_con_regex_str = ''.join(author_first_char_list)
+            # 匹配名字首字母
+            author_first_char_con_match = re.search(author_first_char_con_regex_str,
+                                                    email_user_copy,
+                                                    re.IGNORECASE)
+            if author_first_char_con_match is not None:
+                author_first_char_con_match_result = author_first_char_con_match.group()
+                author_first_char_match_count = len(author_first_char_con_match_result)
+                # 获取权重（按字母数计算）
+                current_author_first_char_weight = author_first_char_match_count
+                # 此处为首字母连续，也应弱化权重
+                current_author_first_char_weight = 0.85 * current_author_first_char_weight
+                # 条件1：邮箱姓名部分只由首字母组成
+                con1 = len(email_user) == author_first_char_match_count
+                # 条件2：前面没有任何有匹配到情况
+                con2 = not (correlation_1_done or correlation_2_done or correlation_3_done)
+                # 满足以上任意一种则参与权重计算
+                if con1 or con2:
+                    current_author_weight += current_author_first_char_weight
+
+                # - - - - - 打印调试日志 - - - - -
+                if debug:
+                    print('- ' * 20)
+                    print('Name: ', author)
+                    print('Email:', email)
+                    print('User Part:', email_user_copy)
+                    print(author_first_char_list)
+                    print(author_first_char_con_regex_str)
+                    print(author_first_char_con_match_result)
+                    print(current_author_first_char_weight)
+                # - - - - - 打印调试日志 - - - - -
+
+                if debug:
+                    print('- ' * 20)
+                    print('weight: ', current_author_weight)
 
             # = = = = = 匹配姓名首字母（不连续字母） = = = = =
 
@@ -281,21 +300,22 @@ def correlation(email_list: list, author_list: list, keep_original=False, debug=
                 author_words[0] for author_words in author_words_list
                 if len(author_words) > 0  # 避免出现空字符串的情况
             ]
-            # author_first_char_regex_str = '[' + ''.join(author_first_char_list) + ']+'
             author_first_char_regex_str = '|'.join(author_first_char_list)
             # 匹配名字首字母
             author_first_char_match_result = re.findall(author_first_char_regex_str, email_user_copy,
                                                         re.IGNORECASE)
-
+            # 忽略单字母多次出现
+            author_first_char_match_result = list(set(author_first_char_match_result))
             author_first_char_match_count = len(author_first_char_match_result)
+
             # 获取权重（按字母数计算）
             current_author_first_char_weight = author_first_char_match_count
             # 首字母不连续，应弱化权重
             current_author_first_char_weight = 0.8 * current_author_first_char_weight
             # 条件1：邮箱姓名部分只由首字母组成
             con1 = len(email_user) == author_first_char_match_count
-            # 条件2：前面2中情况已经有匹配到
-            con2 = current_author_weight > 0
+            # 条件2：前面有已经有匹配到的情况（因为首字母不联系的情况可能很不准确）
+            con2 = correlation_1_done or correlation_2_done or correlation_3_done
             # 满足以上任意一种则参与权重计算
             if con1 or con2:
                 current_author_weight += current_author_first_char_weight
