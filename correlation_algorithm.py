@@ -65,9 +65,10 @@ class Owner(object):
 def correlation(email_list: list, author_list: list, keep_original=False, debug=False):
     """
         匹配邮箱对应的名字
-
-        算法来自于是 extracter/custom/pmc_module/detail.py
-        PmcDetailOptimize.__operations_function_5 方法
+    :param email_list:  邮箱列表
+    :param author_list: 姓名列表
+    :param debug:       是否打印调试
+    :return:            匹配邮箱对应名字结果
     """
 
     # 检查参数
