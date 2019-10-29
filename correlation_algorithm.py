@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import re
+import itertools
 import unicodedata
 
 NON_ALPHABET_CHARACTER_REGEX = re.compile('[^A-Za-z]')
@@ -193,22 +194,53 @@ def correlation(email_list: list, author_list: list, keep_original=False, debug=
             for author_feature_reverse in author_feature_reverse_match_result:
                 email_user_copy = email_user_copy.replace(author_feature_reverse, '')
 
-            # # = = = = = 匹配名字每个词前n字母组合（n小段连续字母） = = = = =
+            # # = = = = = 匹配名字每个词前n字母组合（n小段连续字母，每段都由单词的前 2～3 个字母组成） = = = = =
 
             #  e.g. Name:  Yasuhiro KAWAI
             #       Email: kaya@nih.go.jp
+            #  e.g. Name:  Martha Irene Bucio Torres
+            #       Email: marbu@unam.mx
 
+            # 取出所有单词的前 2～3 个字母
+            author_feature_shout_same_limit_matrix = [[] for _ in author_words_list]
             author_feature_shout_list = []
             for limit in [3, 2]:
-                author_feature_shout_same_limit = []
-                for author_words in author_words_list:
+                # author_feature_shout_same_limit = []
+                for index, author_words in enumerate(author_words_list):
                     if len(author_words) >= limit:
                         author_words_top_n_char = author_words[0:limit]
                         if author_words_top_n_char not in author_feature_list:
-                            author_feature_shout_same_limit.append(author_words_top_n_char)
-                # 正序和倒序
-                author_feature_shout_list.append(''.join(author_feature_shout_same_limit))
-                author_feature_shout_list.append(''.join(author_feature_shout_same_limit[::-1]))
+                            # author_feature_shout_same_limit.append(author_words_top_n_char)
+                            author_feature_shout_same_limit_matrix[index].append(author_words_top_n_char)
+
+            # 通过递归计算所有片段可能存在的组合
+            author_feature_shout_matrix = []
+
+            # 生成矩阵首行元素到末行元素之间所有可能的路径
+            def generate_path(matrix, **kwargs):
+                word_list = kwargs.get('word_list', list())
+                depth = kwargs.get('depth', 0)
+                # 递归深度在矩阵行数之内
+                if depth >= len(matrix):
+                    author_feature_shout_matrix.append(word_list)
+                    return
+                for row in matrix[depth]:
+                    generate_path(matrix=matrix, word_list=[*word_list, row], depth=depth + 1)
+
+            # 调用递归
+            generate_path(author_feature_shout_same_limit_matrix)
+
+            for author_feature_shout_row in author_feature_shout_matrix:
+                # print(author_feature_shout_row)
+                author_feature_shout_same_count = len(author_feature_shout_row)
+                for count in range(2, author_feature_shout_same_count):
+                    for permutations in itertools.permutations(author_feature_shout_row, count):
+                        author_feature_shout_list.append(''.join(permutations))
+
+            # 去重排序
+            author_feature_shout_list = list(set(author_feature_shout_list))
+            author_feature_shout_list = sorted(author_feature_shout_list, key=lambda i: len(i), reverse=True)
+
             author_feature_shout_regex_str = '|'.join(author_feature_shout_list)
             # 匹配名字单词特征
             author_feature_shout_match_result = re.findall(author_feature_shout_regex_str, email_user_copy,
@@ -368,16 +400,23 @@ if __name__ == '__main__':
         'kaya@nih.go.jp',
         'tkunieda@okayama-u.ac.jp',
         'rqkspine1@aol.com',
+        "tb1@nibmg.ac.in",
+        "bb2@nibmg.ac.in",
+        "marbu@unam.mx",
     ]
     author_list = [
         ' ',
         'Reginald Q Knight',
+        "Taniya Bardhan",
+        "Bornali Bhattacharjee",
         'Kazuhiro Yoneda',
         'Yasuhiro KAWAI',
         'Takashi HIRANO',
         'Yasuhiro KAWAI',
         'Taishi KANII',
         'Tetsuo KUNIEDA',
+        "Martha Irene Bucio Torres",
+        "PAZ MAR&IACUTE",
     ]
     result = correlation(email_list=email_list, author_list=author_list, debug=True)
     print(json.dumps(result, ensure_ascii=False, indent=True))
