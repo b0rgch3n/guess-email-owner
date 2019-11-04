@@ -233,6 +233,9 @@ def correlation(email_list: list, author_list: list, keep_original=False, debug=
             for author_feature_shout_row in author_feature_shout_matrix:
                 # print(author_feature_shout_row)
                 author_feature_shout_same_count = len(author_feature_shout_row)
+                # 词汇量过多可能造成内存暴涨，因此超过五个时统统跳过
+                if author_feature_shout_same_count > 5:
+                    continue
                 for count in range(2, author_feature_shout_same_count):
                     for permutations in itertools.permutations(author_feature_shout_row, count):
                         author_feature_shout_list.append(''.join(permutations))
@@ -403,6 +406,16 @@ if __name__ == '__main__':
         "tb1@nibmg.ac.in",
         "bb2@nibmg.ac.in",
         "marbu@unam.mx",
+
+        "alydan@hotmail.com",
+        "acmusa23@yahoo.com.br",
+        "rafaelquadros13@hotmail.com",
+        "michelli_quimifarm@yahoo.com.br",
+        "rogeriosst@gmail.com",
+        "jrvieira@ufpa.br",
+        "percario@ufpa.br",
+        "spercario49@gmail.com",
+
     ]
     author_list = [
         ' ',
@@ -417,6 +430,16 @@ if __name__ == '__main__':
         'Tetsuo KUNIEDA',
         "Martha Irene Bucio Torres",
         "PAZ MAR&IACUTE",
+
+        "Danilo Reymão Moreira",
+        "Ana Carolina Musa Gonçalves Uberti",
+        "Antonio Rafael Quadros Gomes",
+        "Michelli Erica Souza Ferreira",
+        "Rogério Silva Santos",
+        "Michael Dean Green",
+        "José Ricardo dos Santos Vieira",
+        "Maria Fani Dolabela",
+        "Sandro Percário"
     ]
     result = correlation(email_list=email_list, author_list=author_list, debug=True)
     print(json.dumps(result, ensure_ascii=False, indent=True))
