@@ -5,6 +5,7 @@ import itertools
 import unicodedata
 
 NON_ALPHABET_CHARACTER_REGEX = re.compile('[^A-Za-z]')
+NON_WORD_CHARACTER_REGEX = re.compile('\W+')
 
 
 class Storager(object):
@@ -80,11 +81,6 @@ def correlation(email_list: list, author_list: list, keep_original=False, debug=
         author for author in author_list if author.strip() != ''
     ]
 
-    # 标记 TOP 3 算法是否有匹配结果
-    correlation_1_done = False
-    correlation_2_done = False
-    correlation_3_done = False
-
     storager = Storager()
     for email in email_list:
         # 取邮箱姓名部分并去符号
@@ -93,6 +89,12 @@ def correlation(email_list: list, author_list: list, keep_original=False, debug=
 
         best_author_feature_weight = 0
         for author in author_list:
+
+            # 标记 TOP 3 算法是否有匹配结果
+            correlation_1_done = False
+            correlation_2_done = False
+            correlation_3_done = False
+
             # 暂时保存原始姓名
             original_author_name = author
 
@@ -107,7 +109,7 @@ def correlation(email_list: list, author_list: list, keep_original=False, debug=
             # 去除小语种音调
             author = unicodedata.normalize('NFKD', author).encode('ascii', 'ignore').decode()
             # 将名字切割为单词构造名字单词列表
-            author_words_list = NON_ALPHABET_CHARACTER_REGEX.split(author)
+            author_words_list = NON_WORD_CHARACTER_REGEX.split(author)
             # 除去单字符单词，构造名字特征列表以及对应的正则
             author_feature_list = [
                 author_words for author_words in author_words_list if len(author_words) > 1
@@ -198,8 +200,6 @@ def correlation(email_list: list, author_list: list, keep_original=False, debug=
 
             #  e.g. Name:  Yasuhiro KAWAI
             #       Email: kaya@nih.go.jp
-            #  e.g. Name:  Martha Irene Bucio Torres
-            #       Email: marbu@unam.mx
 
             # 取出所有单词的前 2～3 个字母
             author_feature_shout_same_limit_matrix = [[] for _ in author_words_list]
@@ -212,6 +212,11 @@ def correlation(email_list: list, author_list: list, keep_original=False, debug=
                         if author_words_top_n_char not in author_feature_list:
                             # author_feature_shout_same_limit.append(author_words_top_n_char)
                             author_feature_shout_same_limit_matrix[index].append(author_words_top_n_char)
+
+            # 清除空行，避免影响递归
+            author_feature_shout_same_limit_matrix = [
+                row for row in author_feature_shout_same_limit_matrix if len(row) != 0
+            ]
 
             # 通过递归计算所有片段可能存在的组合
             author_feature_shout_matrix = []
@@ -236,7 +241,7 @@ def correlation(email_list: list, author_list: list, keep_original=False, debug=
                 # 词汇量过多可能造成内存暴涨，因此超过五个时统统跳过
                 if author_feature_shout_same_count > 5:
                     continue
-                for count in range(2, author_feature_shout_same_count):
+                for count in range(2, author_feature_shout_same_count + 1):
                     for permutations in itertools.permutations(author_feature_shout_row, count):
                         author_feature_shout_list.append(''.join(permutations))
 
@@ -262,7 +267,7 @@ def correlation(email_list: list, author_list: list, keep_original=False, debug=
 
             # - - - - - 打印调试日志 - - - - -
             if debug:
-                print('- ' * 20)
+                print('= ' * 20)
                 print('Name: ', author)
                 print('Email:', email)
                 print('User Part:', email_user_copy)
@@ -285,7 +290,7 @@ def correlation(email_list: list, author_list: list, keep_original=False, debug=
             #       Email: bb2@nibmg.ac.in
 
             # 将名字切割为单词构造名字单词列表
-            author_words_list = NON_ALPHABET_CHARACTER_REGEX.split(author)
+            author_words_list = NON_WORD_CHARACTER_REGEX.split(author)
             # 除去单字符单词，获取单词首字母，构造名字首字母列表以及对应的正则
             author_first_char_list = [
                 author_words[0] for author_words in author_words_list
@@ -330,7 +335,7 @@ def correlation(email_list: list, author_list: list, keep_original=False, debug=
             # = = = = = 匹配姓名首字母（不连续字母） = = = = =
 
             # 将名字切割为单词构造名字单词列表
-            author_words_list = NON_ALPHABET_CHARACTER_REGEX.split(author)
+            author_words_list = NON_WORD_CHARACTER_REGEX.split(author)
             # 除去单字符单词，获取单词首字母，构造名字首字母列表以及对应的正则
             author_first_char_list = [
                 author_words[0] for author_words in author_words_list
@@ -416,6 +421,7 @@ if __name__ == '__main__':
         "percario@ufpa.br",
         "spercario49@gmail.com",
 
+        'poda@mail.med.upenn.edu',
     ]
     author_list = [
         ' ',
@@ -439,7 +445,9 @@ if __name__ == '__main__':
         "Michael Dean Green",
         "José Ricardo dos Santos Vieira",
         "Maria Fani Dolabela",
-        "Sandro Percário"
+        "Sandro Percário",
+
+        'Daniel J. Powell'
     ]
-    result = correlation(email_list=email_list, author_list=author_list, debug=True)
+    result = correlation(email_list=email_list, author_list=author_list, debug=False)
     print(json.dumps(result, ensure_ascii=False, indent=True))
