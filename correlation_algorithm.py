@@ -104,12 +104,18 @@ def correlation(email_list: list, author_list: list, keep_original=False, debug=
             # 复制邮箱姓名部分副本
             email_user_copy = ''.join(email_user)
 
+            # 暂时保存将名字切割为单词构造名字单词列表
+            author_words_list_after_non_word_character_split = NON_WORD_CHARACTER_REGEX.split(author)
+            # 名字单词量
+            author_words_count = len(author_words_list_after_non_word_character_split)
+
             # = = = = = 匹配全名以及全名截断（连续字母） = = = = =
 
             # 去除小语种音调
             author = unicodedata.normalize('NFKD', author).encode('ascii', 'ignore').decode()
             # 将名字切割为单词构造名字单词列表
-            author_words_list = NON_WORD_CHARACTER_REGEX.split(author)
+            author_words_list = author_words_list_after_non_word_character_split.copy()
+
             # 除去单字符单词，构造名字特征列表以及对应的正则
             author_feature_list = [
                 author_words for author_words in author_words_list if len(author_words) > 1
@@ -290,7 +296,7 @@ def correlation(email_list: list, author_list: list, keep_original=False, debug=
             #       Email: bb2@nibmg.ac.in
 
             # 将名字切割为单词构造名字单词列表
-            author_words_list = NON_WORD_CHARACTER_REGEX.split(author)
+            author_words_list = author_words_list_after_non_word_character_split.copy()
             # 除去单字符单词，获取单词首字母，构造名字首字母列表以及对应的正则
             author_first_char_list = [
                 author_words[0] for author_words in author_words_list
@@ -335,7 +341,7 @@ def correlation(email_list: list, author_list: list, keep_original=False, debug=
             # = = = = = 匹配姓名首字母（不连续字母） = = = = =
 
             # 将名字切割为单词构造名字单词列表
-            author_words_list = NON_WORD_CHARACTER_REGEX.split(author)
+            author_words_list = author_words_list_after_non_word_character_split.copy()
             # 除去单字符单词，获取单词首字母，构造名字首字母列表以及对应的正则
             author_first_char_list = [
                 author_words[0] for author_words in author_words_list
@@ -385,13 +391,22 @@ def correlation(email_list: list, author_list: list, keep_original=False, debug=
             is_not_zero_weight = current_author_weight != 0
             is_best_weight = current_author_weight > best_author_feature_weight
             if is_not_zero_weight and is_best_weight:
+                # 名字越短，需要确定的信息越少，代价越小
+                # 代价函数 1 - abs(1 - (1 / (x - 1) ^ 0.5)) 在变量域 [2, +∞)里，值域为 [0, 1)
+                cost_factor = 1 - abs(1 - (1 / (author_words_count - 1) ** 0.5))
+                if author_words_count >= 2:
+                    current_author_weight = current_author_weight * cost_factor
+                # 根据参数选择是否保留名字处理后的变化
                 name = original_author_name if keep_original else author
                 storager.update(email=email,
                                 name=name,
                                 name_weight=current_author_weight)
-                print("[+] %(option)s e-mail '%(email)s' author '%(author)s'." %
-                      {'option': 'Fount' if best_author_feature_weight == 0 else 'Update', 'email': email,
-                       'author': name})
+                print("[+] %(option)s e-mail '%(email)s' author '%(author)s', weight %(weight).2f." %
+                      {
+                          'option': 'Fount' if best_author_feature_weight == 0 else 'Update', 'email': email,
+                          'author': name,
+                          'weight': current_author_weight
+                      })
                 # 更新最优权重
                 best_author_feature_weight = current_author_weight
 
@@ -422,6 +437,9 @@ if __name__ == '__main__':
         "spercario49@gmail.com",
 
         'poda@mail.med.upenn.edu',
+
+        'zhangling1888@hotmail.com',
+        'drzyl77@gmail.com',
     ]
     author_list = [
         ' ',
@@ -447,7 +465,11 @@ if __name__ == '__main__':
         "Maria Fani Dolabela",
         "Sandro Percário",
 
-        'Daniel J. Powell'
+        'Daniel J. Powell',
+
+        'Zhang Yan-Ling',
+        'Zhang Ling',
     ]
     result = correlation(email_list=email_list, author_list=author_list, debug=False)
     print(json.dumps(result, ensure_ascii=False, indent=True))
+
